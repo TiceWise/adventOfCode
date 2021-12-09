@@ -5,7 +5,7 @@ def add_to_basin(row, col):
     if height_map_with_outline[row, col] >= 9:
         return 0
     else:
-        height_map_with_outline[row, col] = 11  # make sure we don't come here again
+        height_map_with_outline[row, col] = 11  # make sure we don't come here again (and visualizes basins)
         return 1 + add_to_basin(row - 1, col) + add_to_basin(row + 1, col) + add_to_basin(row, col - 1) + add_to_basin(
             row, col + 1)
 
