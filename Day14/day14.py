@@ -1,14 +1,13 @@
 """
 Day 14 of Advent of Code: Extended Polymerization - by Thijs de Groot
 """
-
-import sys
+import math
 
 all_pair_counts = {}
 all_pair_inserts = {}
 
 # read input
-with open('input.txt', 'r', encoding='utf-8') as file:
+with open('biginput.txt', 'r', encoding='utf-8') as file:
     polymer = list(file.readline().strip())
     next(file)
     for index, line in enumerate(file):
@@ -32,9 +31,11 @@ letter_count = {}
 for letter in all_letters:
     letter_count[letter] = 0
 
-cycles = 40  # 40 for part 2
+cycles = 200000  # 40 for part 2
 
 for i in range(cycles):
+    if i % 2000 == 0:
+        print(f'{(i / cycles) * 100:.0f}%')
     # Each pair results in two pairs, with the amount/count of the current pair
     # all changes happen simultaneously, so don't update the current, but update 'the new' counts
     new_all_pair_counts = all_pair_counts.copy()
@@ -64,13 +65,15 @@ letter_count[polymer[-1]] += 1
 
 # half the letter count and track min and max:
 max_el = 0
-min_el = sys.maxsize
+min_el = math.inf
 
 for letter in all_letters:
     current_count = letter_count[letter] // 2
-    if current_count < min_el:
-        min_el = current_count
-    if current_count > max_el:
-        max_el = current_count
+    # if current_count < min_el:
+    min_el = min(current_count, min_el)
+    max_el = max(current_count, max_el)
 
-print(f'answer: {max_el - min_el}')
+answer = max_el - min_el
+print(f'answer: {answer}')
+print(f'answer % 2^64: {answer % (2 ** 64)}')
+print(f'answer % 2^32: {answer % (2 ** 32)}')
