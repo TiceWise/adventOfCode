@@ -1,50 +1,76 @@
 """
 Day 14 of Advent of Code: Extended Polymerization - by Thijs de Groot
 """
+
 import sys
 
-all_pairs = []
-all_inserts = []
+all_pair_counts = {}
+all_pair_inserts = {}
 
+# read input
 with open('input.txt', 'r', encoding='utf-8') as file:
     polymer = list(file.readline().strip())
     next(file)
     for index, line in enumerate(file):
         [pair, insert] = line.strip().split(' -> ')
-        all_pairs.append(pair)
-        all_inserts.append(insert)
+        all_pair_counts[pair] = 0
+        all_pair_inserts[pair] = insert
 
-for i in range(10):
-    print(i)
-    insert_list = []
-    index_list = []
-    for index, char in enumerate(polymer[:-1]):
-        current_pair = ''.join([char, polymer[index + 1]])
-        pair_index = all_pairs.index(current_pair)
-        index_list.append(index)
-        insert_list.append(all_inserts[pair_index])
+# count starting pairs
+for index, char in enumerate(polymer[:-1]):
+    current_pair = ''.join([char, polymer[index + 1]])
+    all_pair_counts[current_pair] += 1
 
-    reversed_index_list = list(reversed(index_list))
-    reversed_insert_list = list(reversed(insert_list))
+# initialize all letters of the polymer
+key_string = []
+for keys in all_pair_counts:
+    key_string.append(keys)
+all_letters = set(list(''.join(key_string)))
 
-    for j, insert_index in enumerate(reversed_index_list):
-        polymer.insert(insert_index + 1, reversed_insert_list[j])
+# initialize letter counter dict
+letter_count = {}
+for letter in all_letters:
+    letter_count[letter] = 0
 
-    # print(''.join(polymer))
+cycles = 40  # 40 for part 2
 
-print(len(polymer))
-chars = set(polymer)
-print(chars)
+for i in range(cycles):
+    # Each pair results in two pairs, with the amount/count of the current pair
+    # all changes happen simultaneously, so don't update the current, but update 'the new' counts
+    new_all_pair_counts = all_pair_counts.copy()
+    for current_pair_el in all_pair_counts.items():
+        current_pair = current_pair_el[0]
+        current_pair_count = current_pair_el[1]
+        new_left_pair = ''.join([current_pair[0], all_pair_inserts[current_pair]])
+        new_right_pair = ''.join([all_pair_inserts[current_pair], current_pair[1]])
+        new_all_pair_counts[new_left_pair] += current_pair_count
+        new_all_pair_counts[new_right_pair] += current_pair_count
+        new_all_pair_counts[current_pair] -= current_pair_count
 
+        all_pair_counts = new_all_pair_counts.copy()
+
+# count letters: split all pairs into the corresponding letters and add them to the letter count
+for current_pair_el in all_pair_counts.items():
+    current_pair = current_pair_el[0]
+    current_pair_count = current_pair_el[1]
+
+    letter_count[current_pair[0]] += current_pair_count
+    letter_count[current_pair[1]] += current_pair_count
+
+# all letters are counted twice (left of one pair, right of another pair)...
+# ...except the outer two letters, which are counted one less
+letter_count[polymer[0]] += 1
+letter_count[polymer[-1]] += 1
+
+# half the letter count and track min and max:
 max_el = 0
 min_el = sys.maxsize
 
-for char in chars:
-    current_count = polymer.count(char)
-    print(f'cur: {current_count}, max: {max_el}, min: {min_el}')
+for letter in all_letters:
+    current_count = letter_count[letter] // 2
     if current_count < min_el:
         min_el = current_count
     if current_count > max_el:
         max_el = current_count
 
-print(f'answer 1: {max_el - min_el}')
+print(f'answer: {max_el - min_el}')
