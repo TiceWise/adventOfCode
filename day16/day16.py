@@ -1,75 +1,130 @@
 """
 Day 16 of Advent of Code: Packet Decoder - by Thijs de Groot
 """
-
-import numpy as np
+import math
 
 
 def bit_array_to_int(bit_array):
     return int(''.join(bit_array), 2)
 
 
-with open('microtestinput3.txt', 'r', encoding='utf-8') as file:
-    message = list(file.readline().strip())
-
-print(''.join(message))
-
-total_bit_array = []
-
-for char in message:
-    # print(format(int(char, 16), '04b'))
-    total_bit_array.extend(list(format(int(char, 16), '04b')))
-
-print(''.join(total_bit_array))
-
-
-def decoder(current_bit_array):
+def decoder():
     global VERSION_SUM
-    cur_bit_ar_str = ''.join(current_bit_array)
-    print(f'current bit array: {cur_bit_ar_str}')
-    version = bit_array_to_int(current_bit_array[:3])
-    type_id = bit_array_to_int(current_bit_array[3:6])
+    global BIT_TRACKER
 
+    v_t_width = 3
+    # the next three bits are the version
+    version = bit_array_to_int(TOTAL_BIT_ARRAY[BIT_TRACKER:BIT_TRACKER + v_t_width])
+    BIT_TRACKER += v_t_width
     VERSION_SUM += version
-    lit_op_str = 'literal' if type_id == 4 else 'operator'
-    print(f'version: {version}, type ID: {type_id}, {lit_op_str}')
-    # check for literal value
+
+    # the next three bits are the type
+    type_id = bit_array_to_int(TOTAL_BIT_ARRAY[BIT_TRACKER:BIT_TRACKER + v_t_width])
+    BIT_TRACKER += v_t_width
+
+    # for debugging print:
+    # lit_op_str = 'literal' if type_id == 4 else 'operator'
+    # print(f'version: {version}, type ID: {type_id}, {lit_op_str}')
+
+    # handle for literal value
     if type_id == 4:
+        # initialize empty literal bit array
+        literal_bit_array = []
+        # always read first literal bit
         should_continue = True
-        current_literal_bit_array = []
-        bit_tracker = 6
+
+        literal_width = 4
         while should_continue:
-            # no length type id
-            # next 5 are
-            should_continue = bool(int(current_bit_array[bit_tracker]))
-            # print(should_continue)
-            current_literal_bit_array.extend(current_bit_array[bit_tracker + 1:bit_tracker + 5])
-            # print(current_bit_array)
-            bit_tracker += 5
+            # the next bit determines if this is the last literal bit
+            should_continue = bool(int(TOTAL_BIT_ARRAY[BIT_TRACKER]))
+            BIT_TRACKER += 1
 
-        # if we're done, and all remaining bit's are zero, we're done, otherwise we continue with the next
-        print(f'current literal: {bit_array_to_int(current_literal_bit_array)}')
-        if not np.any(np.array(current_bit_array[bit_tracker:]).astype(int).astype(bool)):
-            return
-        else:
-            decoder(current_bit_array[bit_tracker:])
+            # push next four bits onto the literal bit array
+            literal_bit_array.extend(TOTAL_BIT_ARRAY[BIT_TRACKER:BIT_TRACKER + literal_width])
+            BIT_TRACKER += literal_width
 
-    # else: operator
+        # for debuggin print:
+        # print(f'current literal: {bit_array_to_int(literal_bit_array)}')
+
+        # return the decoded literal
+        return bit_array_to_int(literal_bit_array)
+
+    # handle operators
     else:
         # next bit is length type id:
-        length_type_id = bool(int(current_bit_array[6]))
+        length_type_id = bool(int(TOTAL_BIT_ARRAY[BIT_TRACKER]))
+        BIT_TRACKER += 1
+
+        # initialize a stack for all the literals of the current operator
+        literal_stack = []
         if not length_type_id:
-            total_length_in_bits = bit_array_to_int(current_bit_array[7:7 + 15])
-            print(f'decoding {total_length_in_bits} bits')
-            decoder(current_bit_array[7 + 15:7 + 15 + total_length_in_bits])
+            length_width = 15
+            # the next 15 bits are the length for the current operator
+            total_length_in_bits = bit_array_to_int(TOTAL_BIT_ARRAY[BIT_TRACKER:BIT_TRACKER + length_width])
+            BIT_TRACKER += length_width
+
+            # for debugging:
+            # print(f'decoding {total_length_in_bits} bits')
+
+            # while the bit tracker is within the length of the current operator
+            STOP_TRACKER = BIT_TRACKER + total_length_in_bits
+            while BIT_TRACKER < STOP_TRACKER:
+                # add the result to the literal stack
+                literal_stack.append(decoder())
         else:
-            number_of_sub_packets = bit_array_to_int(current_bit_array[7:7 + 11])
-            print(f'decoding {number_of_sub_packets} packets')
-            decoder(current_bit_array[7 + 11:])
-            # TODO: go n times with the remainder of bit array
-            # use global bit tracker?
+            number_width = 11
+            # the next 11 bits are the number of sub packets in this operator
+            number_of_sub_packets = bit_array_to_int(TOTAL_BIT_ARRAY[BIT_TRACKER:BIT_TRACKER + number_width])
+            BIT_TRACKER += number_width
+
+            # handle the defined number of sub packets
+            for _ in range(number_of_sub_packets):
+                # for debugging print:
+                # print(f'decoding {i} of {number_of_sub_packets} packets')
+
+                # add the result to the literal stack
+                literal_stack.append(decoder())
+
+        # if we have determined the sub packet results, apply the operator
+        if type_id == 0:
+            return sum(literal_stack)
+        elif type_id == 1:
+            return math.prod(literal_stack)
+        elif type_id == 2:
+            return min(literal_stack)
+        elif type_id == 3:
+            return max(literal_stack)
+        elif type_id == 5:
+            return 1 if literal_stack[0] > literal_stack[1] else 0
+        elif type_id == 6:
+            return 1 if literal_stack[0] < literal_stack[1] else 0
+        elif type_id == 7:
+            return 1 if literal_stack[0] == literal_stack[1] else 0
 
 
+TOTAL_BIT_ARRAY = []
 VERSION_SUM = 0
-decoder(total_bit_array)
-print(f'answer: {VERSION_SUM}')
+BIT_TRACKER = 0
+
+
+def main():
+    global TOTAL_BIT_ARRAY
+    global VERSION_SUM
+    global BIT_TRACKER
+
+    with open('input.txt', 'r', encoding='utf-8') as file:
+        message = list(file.readline().strip())
+
+    for char in message:
+        TOTAL_BIT_ARRAY.extend(list(format(int(char, 16), '04b')))
+
+    # print(''.join(message))
+    # print(''.join(TOTAL_BIT_ARRAY))
+
+    value = decoder()
+    print(f'answer 1: {VERSION_SUM}')
+    print(f'answer 2: {value}')
+
+
+if __name__ == "__main__":
+    main()
