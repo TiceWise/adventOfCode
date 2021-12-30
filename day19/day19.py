@@ -6,7 +6,7 @@ import numpy as np
 
 scanners = {}
 # read input
-with open('input.txt', 'r', encoding='utf-8') as file:
+with open('testinput.txt', 'r', encoding='utf-8') as file:
     for index, line in enumerate(file):
         # read scanner number
         if line[0:3] == '---':
@@ -28,6 +28,11 @@ with open('input.txt', 'r', encoding='utf-8') as file:
 dis_matrixes = {}
 min_matrixes = {}
 max_matrixes = {}
+
+matching_scanners = []
+rotations = []
+mirrors = []
+translations = []
 
 for (scanner_number, scanner) in scanners.items():
     number_of_beacons_tup = np.shape(scanner)
@@ -76,6 +81,119 @@ for scanner1_counter in scanners:
             print(f'{scanner1_counter} matches {scanner2_counter} on {matching_beacons_count} beacons')
             matches += matching_beacons_count  # count the number of matches, we can substract these from the unique count
 
+            # Part 2:
+            beacons_scanner1, beacons_scanner2 = np.where(match_matrix > 1)
+
+            bc1_xyz = scanners[scanner1_counter][beacons_scanner1[0], :]
+            bc2_xyz = scanners[scanner1_counter][beacons_scanner1[1], :]
+            bc3_xyz = scanners[scanner2_counter][beacons_scanner2[0], :]
+            bc4_xyz = scanners[scanner2_counter][beacons_scanner2[1], :]
+
+            dx1 = bc2_xyz[0] - bc1_xyz[0]
+            dy1 = bc2_xyz[1] - bc1_xyz[1]
+            dz1 = bc2_xyz[2] - bc1_xyz[2]
+
+            dx2 = bc4_xyz[0] - bc3_xyz[0]
+            dy2 = bc4_xyz[1] - bc3_xyz[1]
+            dz2 = bc4_xyz[2] - bc3_xyz[2]
+
+            rotation_matrix = [0, 0, 0]
+            mirror_matrix = [0, 0, 0]
+
+            if dx1 == dx2:
+                rotation_matrix[0] = 0
+                mirror_matrix[0] = 1
+            if dx1 == -dx2:
+                rotation_matrix[0] = 0
+                mirror_matrix[0] = -1
+            if dx1 == dy2:
+                rotation_matrix[0] = 1
+                mirror_matrix[0] = 1
+            if dx1 == -dy2:
+                rotation_matrix[0] = 1
+                mirror_matrix[0] = -1
+            if dx1 == dz2:
+                rotation_matrix[0] = 2
+                mirror_matrix[0] = 1
+            if dx1 == -dz2:
+                rotation_matrix[0] = 2
+                mirror_matrix[0] = -1
+
+            if dy1 == dx2:
+                rotation_matrix[1] = 0
+                mirror_matrix[1] = 1
+            if dy1 == -dx2:
+                rotation_matrix[1] = 0
+                mirror_matrix[1] = -1
+            if dy1 == dy2:
+                rotation_matrix[1] = 1
+                mirror_matrix[1] = 1
+            if dy1 == -dy2:
+                rotation_matrix[1] = 1
+                mirror_matrix[1] = -1
+            if dy1 == dz2:
+                rotation_matrix[1] = 2
+                mirror_matrix[1] = 1
+            if dy1 == -dz2:
+                rotation_matrix[1] = 2
+                mirror_matrix[1] = -1
+
+            if dz1 == dx2:
+                rotation_matrix[2] = 0
+                mirror_matrix[2] = 1
+            if dz1 == -dx2:
+                rotation_matrix[2] = 0
+                mirror_matrix[2] = -1
+            if dz1 == dy2:
+                rotation_matrix[2] = 1
+                mirror_matrix[2] = 1
+            if dz1 == -dy2:
+                rotation_matrix[2] = 1
+                mirror_matrix[2] = -1
+            if dz1 == dz2:
+                rotation_matrix[2] = 2
+                mirror_matrix[2] = 1
+            if dz1 == -dz2:
+                rotation_matrix[2] = 2
+                mirror_matrix[2] = -1
+
+            translation_matrix = bc3_xyz[rotation_matrix] * mirror_matrix - bc1_xyz
+
+            matching_scanners.append([scanner1_counter, scanner2_counter])
+            rotations.append(rotation_matrix)
+            mirrors.append(mirror_matrix)
+            translations.append(translation_matrix)
+
+        # print(bc1_xyz)
+        # print(bc2_xyz)
+        # print(bc3_xyz)
+        # print(bc4_xyz)
+        # take one matching set of beacons of each (double check with another set maybe)
+        # x may then be x, y, z, -x, -y, -z
+        # y may then be those but minus the positive and negative which x is
+        # one option left for z, but still might be possitive or negative
+        # then we know the rotation/mirror, determine the translation, and store everything.
+
     unique_beacons += len(scanners[scanner1_counter]) - matches  # add the number of beacons minus the doubles (matches)
 
+known_scanners = {0: np.array([0, 0, 0])}
+
+unknown_scanners = list(range(1, len(scanners)))
+
+print(known_scanners)
+print(matching_scanners)
+print(rotations)
+print(mirrors)
+print(translations)
+
+while len(unknown_scanners) > 0:
+    for index, matching in enumerate(matching_scanners):
+        if matching[0] in unknown_scanners and matching[1] in known_scanners:
+            known_scanners[matching[0]] = known_scanners[matching[1]] + translations[index] * mirrors[index]
+            unknown_scanners.remove(matching[0])
+        if matching[1] in unknown_scanners and matching[0] in known_scanners:
+            known_scanners[matching[1]] = known_scanners[matching[0]] - translations[index] * mirrors[index]
+            unknown_scanners.remove(matching[1])
+
+print(known_scanners)
 print(unique_beacons)
